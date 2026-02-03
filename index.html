@@ -199,6 +199,17 @@
 
   <!-- Firebase (modular SDK) -->
   <script type="module">
+    function flattenBoards(boards) {
+  return boards.flat();
+}
+
+function unflattenBoards(flat) {
+  const out = [];
+  for (let i = 0; i < 9; i++) {
+    out.push(flat.slice(i * 9, i * 9 + 9));
+  }
+  return out;
+}
     // 1) LIM INN DIN firebaseConfig HER (fra Firebase Console)
     const firebaseConfig = {
   apiKey: "AIzaSyCV0TRPv09RaAnYQP7jE43olIr_O77Iwm8",
@@ -436,14 +447,14 @@
         createdAt: serverTimestamp(),
         players: { x: myUid, o: null },
         state: {
-          boards,
-          smallWinners,
-          currentPlayer,
-          activeBoard,
-          gameOver,
-          // for sanity:
-          move: 0
-        }
+  boards: flattenBoards(boards),
+  smallWinners,
+  currentPlayer,
+  activeBoard,
+  gameOver,
+  move: 0
+}
+
       };
       await setDoc(roomRef(id), payload);
       await attachRoom(id);
@@ -488,7 +499,7 @@
         // state
         const st = data.state;
         if (st) {
-          boards = st.boards;
+          boards = unflattenBoards(st.boards);
           smallWinners = st.smallWinners;
           currentPlayer = st.currentPlayer;
           activeBoard = st.activeBoard;
@@ -558,7 +569,7 @@
       // Note: for “skikkelig” konkurransesikkert burde man bruke transactions,
       // men dette funker bra for vanlig spilling.
       await updateDoc(ref, {
-        "state.boards": boards,
+        "state.boards": flattenBoards(boards),
         "state.smallWinners": smallWinners,
         "state.currentPlayer": currentPlayer,
         "state.activeBoard": activeBoard,
@@ -571,7 +582,7 @@
       if (!roomId) return;
       emptyState();
       await updateDoc(roomRef(roomId), {
-        "state.boards": boards,
+        "state.boards": flattenBoards(boards),
         "state.smallWinners": smallWinners,
         "state.currentPlayer": currentPlayer,
         "state.activeBoard": activeBoard,
@@ -614,4 +625,5 @@
   </script>
 </body>
 </html>
+
 
