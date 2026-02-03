@@ -247,6 +247,7 @@ function unflattenBoards(flat) {
     let unsub = null;
 
     // data:
+    let moveHistory; // liste med alle trekk
     let boards;
     let smallWinners;
     let currentPlayer;
@@ -269,6 +270,7 @@ function unflattenBoards(flat) {
       currentPlayer = "X";
       activeBoard = -1;
       gameOver = false;
+      moveHistory = [];
     }
 
     function isBoardFinished(b) { return smallWinners[b] !== ""; }
@@ -453,6 +455,7 @@ function unflattenBoards(flat) {
   activeBoard,
   gameOver,
   move: 0
+  moveHistory: []
 }
 
       };
@@ -504,6 +507,7 @@ function unflattenBoards(flat) {
           currentPlayer = st.currentPlayer;
           activeBoard = st.activeBoard;
           gameOver = st.gameOver;
+          moveHistory = st.moveHistory || [];
         }
 
         updateUI();
@@ -542,6 +546,10 @@ function unflattenBoards(flat) {
       const btn = e.currentTarget;
       const b = Number(btn.dataset.board);
       const c = Number(btn.dataset.cell);
+      const moveNumber = (moveHistory?.length || 0) + 1;
+const newMove = { p: currentPlayer, b, c, n: moveNumber };
+moveHistory = [...(moveHistory || []), newMove];
+
 
       // enforce active board
       if (activeBoard !== -1 && b !== activeBoard) return;
@@ -574,6 +582,7 @@ function unflattenBoards(flat) {
         "state.currentPlayer": currentPlayer,
         "state.activeBoard": activeBoard,
         "state.gameOver": gameOver,
+        "state.moveHistory": moveHistory,
         "state.move": (Number((await getDoc(ref)).data()?.state?.move || 0) + 1)
       });
     }
@@ -587,6 +596,7 @@ function unflattenBoards(flat) {
         "state.currentPlayer": currentPlayer,
         "state.activeBoard": activeBoard,
         "state.gameOver": gameOver,
+        "state.moveHistory": [],
         "state.move": 0
       });
     }
@@ -625,5 +635,6 @@ function unflattenBoards(flat) {
   </script>
 </body>
 </html>
+
 
 
