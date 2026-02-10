@@ -1,0 +1,1368 @@
+<!doctype html>
+<html lang="no">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Ultimate Tic Tac Toe (Online 2-player)</title>
+  <style>
+    :root {
+      --bg: #0f1220;
+      --panel: #171a2b;
+      --grid: #2b2f49;
+      --text: #e8eaf6;
+      --muted: #a9add1;
+      --x: #7ee787;
+      --o: #ff7b72;
+      --warn: #ffd166;
+      --shadow: rgba(0,0,0,.35);
+      --radius: 14px;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      background: radial-gradient(1200px 700px at 20% 10%, #1b1f39, var(--bg));
+      color: var(--text);
+      display: grid;
+      place-items: center;
+      min-height: 100vh;
+      padding: 18px;
+    }
+    .wrap { width: min(980px, 98vw); display: grid; gap: 14px; }
+    .topbar {
+      background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.03));
+      border: 1px solid rgba(255,255,255,.08);
+      border-radius: var(--radius);
+      padding: 14px 14px;
+      box-shadow: 0 12px 30px var(--shadow);
+      display: grid;
+      gap: 10px;
+    }
+    .title { font-weight: 800; letter-spacing: .3px; font-size: 18px; margin: 0; }
+    .status { margin: 0; color: var(--muted); line-height: 1.35; }
+    .status b { color: var(--text); }
+
+    .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+    .box {
+      background: rgba(255,255,255,.05);
+      border: 1px solid rgba(255,255,255,.10);
+      border-radius: 12px;
+      padding: 10px;
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    input {
+      background: rgba(0,0,0,.25);
+      border: 1px solid rgba(255,255,255,.12);
+      border-radius: 10px;
+      color: var(--text);
+      padding: 10px 12px;
+      min-width: 220px;
+      outline: none;
+    }
+    button.ctrl {
+      background: rgba(255,255,255,.06);
+      color: var(--text);
+      border: 1px solid rgba(255,255,255,.10);
+      border-radius: 12px;
+      padding: 10px 12px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    button.ctrl:hover { background: rgba(255,255,255,.09); }
+    .hint { font-size: 13px; color: var(--muted); }
+
+    .big {
+      background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.03));
+      border: 1px solid rgba(255,255,255,.08);
+      border-radius: var(--radius);
+      padding: 14px;
+      box-shadow: 0 12px 30px var(--shadow);
+    }
+    .bigGrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+
+    .small {
+      position: relative;
+      background: rgba(0,0,0,.15);
+      border: 2px solid var(--grid);
+      border-radius: 12px;
+      padding: 10px;
+      transition: transform .08s ease, border-color .12s ease, box-shadow .12s ease;
+      user-select: none;
+    }
+    .small.active {
+      border-color: rgba(255, 209, 102, .95);
+      box-shadow: 0 0 0 3px rgba(255, 209, 102, .15);
+      transform: translateY(-1px);
+    }
+    .small.free .badge {
+      background: rgba(255, 209, 102, .15);
+      border: 1px solid rgba(255, 209, 102, .35);
+      color: var(--warn);
+    }
+    .badge {
+      position: absolute;
+      top: 8px;
+      left: 8px;
+      font-size: 12px;
+      padding: 4px 7px;
+      border-radius: 999px;
+      background: rgba(255,255,255,.06);
+      border: 1px solid rgba(255,255,255,.10);
+      color: var(--muted);
+    }
+    .smallGrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 18px; }
+    .cell {
+      width: 100%;
+      aspect-ratio: 1 / 1;
+      border-radius: 10px;
+      border: 1px solid rgba(255,255,255,.12);
+      background: rgba(255,255,255,.05);
+      color: var(--text);
+      font-size: clamp(18px, 2.6vw, 28px);
+      font-weight: 900;
+      cursor: pointer;
+      display: grid;
+      place-items: center;
+      transition: transform .06s ease, background .12s ease, border-color .12s ease;
+    }
+    .cell:hover { background: rgba(255,255,255,.08); transform: translateY(-1px); }
+    .cell:disabled { cursor: not-allowed; opacity: .65; transform: none; }
+    .cell.x { color: var(--x); }
+    .cell.o { color: var(--o); }
+
+    .overlay {
+      position: absolute;
+      inset: 0;
+      border-radius: 12px;
+      display: grid;
+      place-items: center;
+      font-weight: 1000;
+      font-size: clamp(32px, 5vw, 58px);
+      letter-spacing: 1px;
+      background: rgba(0,0,0,.35);
+      border: 2px solid rgba(255,255,255,.08);
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity .15s ease;
+    }
+    .overlay.show { opacity: 1; }
+    .overlay.x { color: var(--x); }
+    .overlay.o { color: var(--o); }
+    .overlay.t { color: var(--muted); font-size: clamp(20px, 3.2vw, 34px); font-weight: 900; }
+
+    /* End screen overlay when game finishes */
+    .end-screen {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0, 0, 0, 0.8);
+      z-index: 1000;
+    }
+    .end-screen-content {
+      background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.03));
+      border: 1px solid rgba(255,255,255,.10);
+      border-radius: var(--radius);
+      padding: 24px;
+      text-align: center;
+      color: var(--text);
+      box-shadow: 0 12px 30px var(--shadow);
+    }
+    .end-screen-content h2 {
+      margin: 0 0 16px;
+      font-size: 20px;
+      font-weight: 800;
+    }
+
+    .footer { color: var(--muted); font-size: 12px; text-align: center; padding-bottom: 4px; }
+    .pill {
+      display: inline-block;
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: rgba(255,255,255,.06);
+      border: 1px solid rgba(255,255,255,.10);
+      color: var(--muted);
+      font-size: 12px;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="topbar">
+      <h1 class="title">Ultimate Tic Tac Toe (online two-player)</h1>
+
+      <div class="row">
+        <div class="box">
+          <button class="ctrl" id="createRoomBtn" type="button">Lag rom</button>
+          <input id="roomInput" placeholder="Romkode (f.eks. ABCD)" maxlength="12" />
+          <button class="ctrl" id="joinRoomBtn" type="button">Bli med</button>
+          <button class="ctrl" id="copyLinkBtn" type="button">Kopier link</button>
+          <span class="pill" id="roomPill">Ikke tilkoblet</span>
+          <span class="pill" id="rolePill">Rolle: -</span>
+        </div>
+      </div>
+
+      <p class="status" id="status"></p>
+      <div class="row">
+        <button class="ctrl" id="resetBtn" type="button">Nullstill (ny runde i samme rom)</button>
+        <span class="hint">Tips: Send linken til en venn. Første som joiner blir X, neste blir O.</span>
+      </div>
+
+      <!-- Bot options row: Velg vanskelighetsgrad for å spille mot en enkel datamaskin. -->
+      <div class="row" id="botOptionsRow">
+        <span class="pill">Spill mot bot:</span>
+        <button class="ctrl" id="botEasyBtn" type="button">Lett</button>
+        <button class="ctrl" id="botMediumBtn" type="button">Middels</button>
+        <button class="ctrl" id="botHardBtn" type="button">Vanskelig</button>
+      </div>
+    </div>
+
+    <div class="big">
+      <div class="bigGrid" id="bigGrid"></div>
+    </div>
+
+    <div class="footer">
+      Krever hosting (GitHub Pages) + Firebase Firestore for live synk.
+    </div>
+    <!-- End game overlay -->
+    <div id="endScreen" class="end-screen">
+      <div class="end-screen-content">
+        <h2 id="endMessage"></h2>
+        <button id="endRestartBtn" class="ctrl">Start nytt spill</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Firebase (modular SDK) -->
+  <script type="module">
+    // Flattener helpers
+    function flattenBoards(boards) {
+      return boards.flat();
+    }
+
+    function unflattenBoards(flat) {
+      const out = [];
+      for (let i = 0; i < 9; i++) {
+        out.push(flat.slice(i * 9, i * 9 + 9));
+      }
+      return out;
+    }
+
+    // Firebase config (your own)
+    const firebaseConfig = {
+      apiKey: "AIzaSyCV0TRPv09RaAnYQP7jE43olIr_O77Iwm8",
+      authDomain: "ultimate-tic-tac-toe-4bf73.firebaseapp.com",
+      projectId: "ultimate-tic-tac-toe-4bf73",
+      storageBucket: "ultimate-tic-tac-toe-4bf73.firebasestorage.app",
+      messagingSenderId: "920364547136",
+      appId: "1:920364547136:web:212997dc55347d64be33a5",
+      measurementId: "G-65WQJKMEQB"
+    };
+
+    // === Importer Firebase ===
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-app.js";
+    import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-auth.js";
+    import {
+      getFirestore, doc, setDoc, getDoc, updateDoc, onSnapshot, serverTimestamp
+    } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js";
+
+    // Prevent duplicate script execution. Some environments (like third-party
+    // extensions or translation scripts) may inject our script twice. If this
+    // flag is already set, skip re-running the initialization code to avoid
+    // errors like "has already been declared" when variables are defined
+    // globally. See: https://stackoverflow.com/questions/57651730
+    if (window.__UTTAlreadyLoaded) {
+      console.warn("Ultimate Tic Tac Toe script already loaded, skipping duplicate initialization.");
+    } else {
+      window.__UTTAlreadyLoaded = true;
+
+      // === UI refs ===
+    const bigGridEl = document.getElementById("bigGrid");
+    const statusEl = document.getElementById("status");
+    const resetBtn = document.getElementById("resetBtn");
+    // End game overlay refs. These reference elements used to show a winner/summary
+    // screen when either the human or bot (or remote opponent) wins. The overlay is
+    // hidden by default and shown only via showEndScreen().
+    const endScreen = document.getElementById("endScreen");
+    const endMessage = document.getElementById("endMessage");
+    const endRestartBtn = document.getElementById("endRestartBtn");
+    const createRoomBtn = document.getElementById("createRoomBtn");
+    const joinRoomBtn = document.getElementById("joinRoomBtn");
+    const copyLinkBtn = document.getElementById("copyLinkBtn");
+    const roomInput = document.getElementById("roomInput");
+    const roomPill = document.getElementById("roomPill");
+    const rolePill = document.getElementById("rolePill");
+
+    // Bot UI references
+    const botEasyBtn = document.getElementById("botEasyBtn");
+    const botMediumBtn = document.getElementById("botMediumBtn");
+    const botHardBtn = document.getElementById("botHardBtn");
+
+    // End screen references (already declared above).  Note: do not re-declare
+    // endScreen, endMessage, or endRestartBtn here because they have already
+    // been defined earlier in this script. Duplicate declarations cause
+    // runtime errors ("has already been declared").
+
+    // === Game state (lokalt speil av rommet) ===
+    let roomId = null;
+    let myUid = null;
+    let myRole = null; // 'X' or 'O'
+    let unsub = null;
+
+    // data:
+    let moveHistory; // liste med alle trekk
+    let boards;
+    let smallWinners;
+    let currentPlayer;
+    let activeBoard;
+    let gameOver;
+
+    // Spill mot bot: statusvariabler
+    let vsBot = false;
+    let botDifficulty = null;
+
+    // === Helpers ===
+    function randRoomCode(len = 4) {
+      const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+      let out = "";
+      for (let i = 0; i < len; i++) out += chars[Math.floor(Math.random() * chars.length)];
+      return out;
+    }
+
+    function setStatus(html) { statusEl.innerHTML = html; }
+
+    function emptyState() {
+      boards = Array.from({ length: 9 }, () => Array(9).fill(""));
+      smallWinners = Array(9).fill("");
+      currentPlayer = "X";
+      activeBoard = -1;
+      gameOver = false;
+      moveHistory = [];
+    }
+
+    function isBoardFinished(b) { return smallWinners[b] !== ""; }
+
+    function checkWin3x3(arr) {
+      const lines = [
+        [0,1,2],[3,4,5],[6,7,8],
+        [0,3,6],[1,4,7],[2,5,8],
+        [0,4,8],[2,4,6]
+      ];
+      for (const [a,b,c] of lines) {
+        if (arr[a] && arr[a] === arr[b] && arr[a] === arr[c]) return arr[a];
+      }
+      return "";
+    }
+    function checkTie3x3(arr) { return arr.every(v => v === "X" || v === "O"); }
+    function getBigBoardAs3x3() {
+      return smallWinners.map(w => (w === "X" || w === "O") ? w : "");
+    }
+    function checkBigWin() { return checkWin3x3(getBigBoardAs3x3()); }
+
+    function cellClass(v) {
+      if (v === "X") return "cell x";
+      if (v === "O") return "cell o";
+      return "cell";
+    }
+
+    /**
+     * Show the end-of-game overlay with a message. This overlay appears when either
+     * player (or the bot) wins or the game ends in a tie. It disables further
+     * interaction until a new game is started.
+     * @param {string} message The message to display (e.g. "Du vant!" or "Bot vant.")
+     */
+    function showEndScreen(message) {
+      // Set the message and display the overlay. Using flex ensures the
+      // content is centered horizontally and vertically.
+      endMessage.textContent = message;
+      endScreen.style.display = "flex";
+    }
+
+    /**
+     * Hide the end-of-game overlay. This is called when the user clicks the
+     * restart button or when a new game begins (e.g. joining/creating a room).
+     */
+    function hideEndScreen() {
+      endScreen.style.display = "none";
+    }
+
+    // === Bot helpers and game mode ===
+    /**
+     * Return a list of small board indices (0-8) where a move can be made.
+     * Hvis activeBoard er angitt og ikke ferdig, må neste trekk spilles der.
+     */
+    function getAllowedBoards() {
+      if (activeBoard !== -1 && !isBoardFinished(activeBoard)) {
+        return [activeBoard];
+      }
+      const res = [];
+      for (let i = 0; i < 9; i++) {
+        if (!isBoardFinished(i)) res.push(i);
+      }
+      return res;
+    }
+
+    /**
+     * Return a list of available cell indices (0-8) in a given small board.
+     */
+    function getAvailableCells(b) {
+      const cells = [];
+      for (let i = 0; i < 9; i++) {
+        if (!boards[b][i]) cells.push(i);
+      }
+      return cells;
+    }
+
+    /**
+     * Check if placing `mark` in a small board can create a win on this move.
+     * Returns the cell index that completes a winning line, or -1 if none.
+     */
+    function findWinningCell(cellsArr, mark) {
+      const lines = [
+        [0,1,2],[3,4,5],[6,7,8],
+        [0,3,6],[1,4,7],[2,5,8],
+        [0,4,8],[2,4,6]
+      ];
+      for (const [a,b,c] of lines) {
+        const va = cellsArr[a], vb = cellsArr[b], vc = cellsArr[c];
+        if (va === mark && vb === mark && !vc) return c;
+        if (va === mark && vc === mark && !vb) return b;
+        if (vb === mark && vc === mark && !va) return a;
+      }
+      return -1;
+    }
+
+    /**
+     * Find a blocking move against the opponent's mark (returns cell index or -1).
+     */
+    function findBlockingCell(cellsArr, opponentMark) {
+      return findWinningCell(cellsArr, opponentMark);
+    }
+
+    /* ------------------------------------------------------------------
+     * Advanced bot evaluation helpers
+     *
+     * The following helpers are used to provide a smarter AI for the "hard"
+     * difficulty level. They allow us to simulate moves on a copy of the
+     * current game state, evaluate the resulting positions heuristically and
+     * choose moves by looking ahead one opponent turn (a shallow minimax).
+     */
+
+    /**
+     * Deep clone a game state. We copy the boards and smallWinners arrays so
+     * that modifications during simulations do not affect the live game.
+     * @param {Object} state The state to clone
+     * @returns {Object} A new cloned state
+     */
+    function cloneState(state) {
+      return {
+        boards: state.boards.map(row => row.slice()),
+        smallWinners: state.smallWinners.slice(),
+        currentPlayer: state.currentPlayer,
+        activeBoard: state.activeBoard,
+        gameOver: state.gameOver
+      };
+    }
+
+    /**
+     * Determine which small boards are available for play in a simulated state.
+     * Mirrors getAllowedBoards() but operates on the provided state rather than
+     * globals.
+     * @param {Object} state
+     */
+    function getAllowedBoardsFromState(state) {
+      if (state.activeBoard !== -1 && state.smallWinners[state.activeBoard] === "") {
+        return [state.activeBoard];
+      }
+      const res = [];
+      for (let i = 0; i < 9; i++) {
+        if (state.smallWinners[i] === "") res.push(i);
+      }
+      return res;
+    }
+
+    /**
+     * Returns the list of available cell indices in a given small board for a
+     * simulated state. Operates on the passed-in state rather than globals.
+     * @param {Object} state
+     * @param {number} b
+     */
+    function getAvailableCellsFromState(state, b) {
+      const avail = [];
+      const cells = state.boards[b];
+      for (let i = 0; i < 9; i++) {
+        if (!cells[i]) avail.push(i);
+      }
+      return avail;
+    }
+
+    /**
+     * Simulate placing a mark on the given state and return a new state. This
+     * does not mutate the original state. It updates the board contents,
+     * smallWinners, activeBoard, currentPlayer and gameOver according to the
+     * rules of Ultimate Tic Tac Toe.
+     * @param {Object} state
+     * @param {number} b The small board index
+     * @param {number} c The cell index within the small board
+     * @param {string} mark "O" or "X"
+     */
+    function simulateMoveForState(state, b, c, mark) {
+      const newState = cloneState(state);
+      newState.boards[b][c] = mark;
+      // Update small board outcome
+      const smallWin = checkWin3x3(newState.boards[b]);
+      if (smallWin) {
+        newState.smallWinners[b] = smallWin;
+      } else if (newState.boards[b].every(v => v === "X" || v === "O")) {
+        newState.smallWinners[b] = "T";
+      }
+      // Check if the big board is now won
+      const bigWin = checkWin3x3(newState.smallWinners.map(w => (w === "X" || w === "O") ? w : ""));
+      if (bigWin) {
+        newState.gameOver = true;
+      }
+      // Determine next active board: it's the cell just played
+      newState.activeBoard = c;
+      // If that board is already finished, next player can play anywhere
+      if (newState.activeBoard !== -1 && newState.smallWinners[newState.activeBoard] !== "") {
+        newState.activeBoard = -1;
+      }
+      // Switch current player
+      newState.currentPlayer = (mark === "O") ? "X" : "O";
+      return newState;
+    }
+
+    /**
+     * Evaluate a single small board for heuristic scoring. Positive scores
+     * favour the bot (O), negative scores favour the human (X). Lines with two
+     * marks and one empty are weighted more heavily than lines with one mark.
+     * @param {Array} cells An array of 9 cells representing a small board
+     */
+    function evaluateSmallBoardScore(cells) {
+      const lines = [
+        [0, 1, 2], [3, 4, 5], [6, 7, 8],
+        [0, 3, 6], [1, 4, 7], [2, 5, 8],
+        [0, 4, 8], [2, 4, 6]
+      ];
+      let score = 0;
+      for (const [a, b, c] of lines) {
+        let countO = 0, countX = 0, empty = 0;
+        const vals = [cells[a], cells[b], cells[c]];
+        for (const s of vals) {
+          if (s === "O") countO++;
+          else if (s === "X") countX++;
+          else empty++;
+        }
+        // Skip blocked lines
+        if (countO > 0 && countX > 0) continue;
+        if (countO === 2 && empty === 1) score += 4;
+        else if (countO === 1 && empty === 2) score += 1;
+        else if (countX === 2 && empty === 1) score -= 4;
+        else if (countX === 1 && empty === 2) score -= 1;
+      }
+      return score;
+    }
+
+    /**
+     * Evaluate the entire game state from the bot's perspective. Positive
+     * scores indicate positions favouring the bot (O) and negative scores
+     * indicate positions favouring the human (X). Small-board wins are
+     * weighted, and partial lines in both small boards and the big board
+     * contribute to the score.
+     * @param {Object} state A simulated game state
+     */
+    function evaluateStateForBot(state) {
+      let score = 0;
+      // Score each small board
+      for (let i = 0; i < 9; i++) {
+        const result = state.smallWinners[i];
+        if (result === "O") score += 25;
+        else if (result === "X") score -= 25;
+        else score += evaluateSmallBoardScore(state.boards[i]);
+      }
+      // Score patterns on the big board
+      const bigCells = [];
+      for (let i = 0; i < 9; i++) {
+        if (state.smallWinners[i] === "O") bigCells.push("O");
+        else if (state.smallWinners[i] === "X") bigCells.push("X");
+        else bigCells.push("");
+      }
+      const bigLines = [
+        [0, 1, 2], [3, 4, 5], [6, 7, 8],
+        [0, 3, 6], [1, 4, 7], [2, 5, 8],
+        [0, 4, 8], [2, 4, 6]
+      ];
+      for (const [a, b, c] of bigLines) {
+        let countO = 0, countX = 0, empty = 0;
+        const vals = [bigCells[a], bigCells[b], bigCells[c]];
+        for (const s of vals) {
+          if (s === "O") countO++;
+          else if (s === "X") countX++;
+          else empty++;
+        }
+        if (countO > 0 && countX > 0) continue;
+        if (countO === 2 && empty === 1) score += 50;
+        else if (countO === 1 && empty === 2) score += 5;
+        else if (countX === 2 && empty === 1) score -= 50;
+        else if (countX === 1 && empty === 2) score -= 5;
+      }
+      return score;
+    }
+
+    /**
+     * Depth-limited minimax search for bot move selection.
+     * Recursively evaluates the game tree to the specified depth,
+     * alternating between bot and human turns, and returns a score
+     * from the bot's perspective. Uses alpha-beta pruning to cut off
+     * branches that cannot improve the outcome. A small penalty is
+     * subtracted when the bot sends the human to a finished board (free
+     * placement) and a small reward is added when the human sends the
+     * bot to a finished board.
+     * @param {Object} state The simulated game state
+     * @param {number} depth The remaining search depth
+     * @param {boolean} isBotTurn True if it's the bot's turn
+     * @param {number} alpha The best value that the maximizer (bot) currently can guarantee
+     * @param {number} beta The best value that the minimizer (human) currently can guarantee
+     * @returns {number} The heuristic score of the state
+     */
+    function minimax(state, depth, isBotTurn, alpha, beta) {
+      // If depth limit reached or the game is over, return heuristic evaluation
+      if (depth === 0 || state.gameOver) {
+        return evaluateStateForBot(state);
+      }
+      const allowed = getAllowedBoardsFromState(state);
+      if (isBotTurn) {
+        let maxEval = -Infinity;
+        for (const b of allowed) {
+          const cells = getAvailableCellsFromState(state, b);
+          for (const c of cells) {
+            const nextState = simulateMoveForState(state, b, c, "O");
+            let score = minimax(nextState, depth - 1, false, alpha, beta);
+            // discourage sending the human to a finished board (free choice)
+            if (nextState.activeBoard === -1) {
+              score -= 5;
+            }
+            if (score > maxEval) {
+              maxEval = score;
+            }
+            if (score > alpha) {
+              alpha = score;
+            }
+            if (beta <= alpha) {
+              break;
+            }
+          }
+          if (beta <= alpha) {
+            break;
+          }
+        }
+        return maxEval;
+      } else {
+        let minEval = Infinity;
+        for (const b of allowed) {
+          const cells = getAvailableCellsFromState(state, b);
+          for (const c of cells) {
+            const nextState = simulateMoveForState(state, b, c, "X");
+            let score = minimax(nextState, depth - 1, true, alpha, beta);
+            // encourage the human sending the bot to a finished board
+            if (nextState.activeBoard === -1) {
+              score += 5;
+            }
+            if (score < minEval) {
+              minEval = score;
+            }
+            if (score < beta) {
+              beta = score;
+            }
+            if (beta <= alpha) {
+              break;
+            }
+          }
+          if (beta <= alpha) {
+            break;
+          }
+        }
+        return minEval;
+      }
+    }
+
+    /**
+     * Choose the best move for hard difficulty by looking ahead one opponent
+     * move (shallow minimax). The function returns an object with the board,
+     * cell and score of the chosen move. If the bot can immediately win, it
+     * returns that move with a very high score.
+     */
+    function chooseBestHardMove() {
+      const allowedBoards = getAllowedBoards();
+      let bestMove = null;
+      let bestScore = -Infinity;
+      for (const b of allowedBoards) {
+        const cells = getAvailableCells(b);
+        for (const c of cells) {
+          // Build a snapshot of the current state to simulate on
+          const initialState = {
+            boards: boards,
+            smallWinners: smallWinners,
+            currentPlayer: currentPlayer,
+            activeBoard: activeBoard,
+            gameOver: gameOver
+          };
+          const stateAfterBot = simulateMoveForState(initialState, b, c, "O");
+          // If this move wins the game instantly, pick it immediately
+          const bigWin = checkWin3x3(stateAfterBot.smallWinners.map(w => (w === 'X' || w === 'O') ? w : ''));
+          if (bigWin === "O") {
+            return { b: b, c: c, score: 1000000 };
+          }
+          // Search deeper to evaluate this move. Adjust search depth here.
+          const depth = 2; // Increase this (e.g. 3) for an even harder bot.
+          let score = minimax(stateAfterBot, depth, false, -Infinity, Infinity);
+          // Additional penalty if this move gives the human free placement
+          if (stateAfterBot.activeBoard === -1) {
+            score -= 10;
+          }
+          if (score > bestScore) {
+            bestScore = score;
+            bestMove = { b: b, c: c, score: score };
+          }
+        }
+      }
+      return bestMove;
+    }
+
+    /**
+     * Let the bot (always 'O') make a move based on the chosen difficulty.
+     * This updates the global game state and does not interact with Firestore.
+     */
+    function performBotMove() {
+      // Do nothing if not in bot mode or the game has ended
+      if (!vsBot || gameOver) return;
+      const allowedBoards = getAllowedBoards();
+      let chosenMove = null;
+      // Step 1: immediate win or block for medium/hard
+      if (botDifficulty === "medium" || botDifficulty === "hard") {
+        // Try to win on this move
+        outerWin: for (const b of allowedBoards) {
+          const winCell = findWinningCell(boards[b], "O");
+          if (winCell >= 0) {
+            chosenMove = { b: b, c: winCell };
+            break outerWin;
+          }
+        }
+        // If no winning move, try to block the opponent
+        if (!chosenMove) {
+          outerBlock: for (const b of allowedBoards) {
+            const blockCell = findBlockingCell(boards[b], "X");
+            if (blockCell >= 0) {
+              chosenMove = { b: b, c: blockCell };
+              break outerBlock;
+            }
+          }
+        }
+      }
+      // Step 2: hard difficulty uses shallow minimax lookahead
+      if (!chosenMove && botDifficulty === "hard") {
+        const best = chooseBestHardMove();
+        if (best) {
+          chosenMove = { b: best.b, c: best.c };
+        }
+      }
+      // Step 3: avoid sending the opponent to a finished board when possible
+      if (!chosenMove && (botDifficulty === "medium" || botDifficulty === "hard")) {
+        const safeMoves = [];
+        for (const b of allowedBoards) {
+          const cells = getAvailableCells(b);
+          for (const c of cells) {
+            // A move is safe if the next active board is not finished
+            if (!isBoardFinished(c)) {
+              safeMoves.push({ b: b, c: c });
+            }
+          }
+        }
+        if (safeMoves.length > 0) {
+          const idx = Math.floor(Math.random() * safeMoves.length);
+          chosenMove = safeMoves[idx];
+        }
+      }
+      // Step 4: medium difficulty additional heuristics (center then corner)
+      if (!chosenMove && botDifficulty === "medium") {
+        // Try center of any allowed board
+        outerCenter: for (const b of allowedBoards) {
+          if (!boards[b][4]) {
+            chosenMove = { b: b, c: 4 };
+            break outerCenter;
+          }
+        }
+        // Try corners if center not available
+        const corners = [0, 2, 6, 8];
+        if (!chosenMove) {
+          outerCorner: for (const b of allowedBoards) {
+            for (const corner of corners) {
+              if (!boards[b][corner]) {
+                chosenMove = { b: b, c: corner };
+                break outerCorner;
+              }
+            }
+          }
+        }
+      }
+      // Step 5: if still no move, choose randomly
+      if (!chosenMove) {
+        const bIndex = Math.floor(Math.random() * allowedBoards.length);
+        const b = allowedBoards[bIndex];
+        const availableCells = getAvailableCells(b);
+        const cIndex = Math.floor(Math.random() * availableCells.length);
+        chosenMove = { b: b, c: availableCells[cIndex] };
+      }
+      // Apply the chosen move
+      const b = chosenMove.b;
+      const c = chosenMove.c;
+      // Record in history
+      const moveNumber = (moveHistory?.length || 0) + 1;
+      moveHistory = [...(moveHistory || []), { p: "O", b: b, c: c, n: moveNumber }];
+      boards[b][c] = "O";
+      // Update small board result
+      const smallWin = checkWin3x3(boards[b]);
+      if (smallWin) smallWinners[b] = smallWin;
+      else if (checkTie3x3(boards[b])) smallWinners[b] = "T";
+      // Check big board
+      const bigWin = checkBigWin();
+      if (bigWin) {
+        gameOver = true;
+      } else {
+        activeBoard = c;
+        if (activeBoard !== -1 && isBoardFinished(activeBoard)) activeBoard = -1;
+        currentPlayer = "X";
+      }
+    }
+
+    /**
+     * Start a game versus the bot. Human is always 'X' and bot is 'O'.
+     * @param {string} level "easy" | "medium" | "hard"
+     */
+    function startBotGame(level) {
+      vsBot = true;
+      botDifficulty = level;
+      // Unsubscribe from any Firestore listeners
+      if (unsub) { unsub(); unsub = null; }
+      roomId = null;
+      myRole = null;
+      // Update pills to indicate bot play and difficulty
+      roomPill.textContent = "Bot";
+      // Show which difficulty you are playing against
+      const diffLabel = level === "easy" ? "Lett" : level === "medium" ? "Middels" : "Vanskelig";
+      rolePill.textContent = `Du (X) vs Bot (O) – ${diffLabel}`;
+      // Hide any end screen from previous games
+      hideEndScreen();
+      emptyState();
+      buildUI();
+      updateUI();
+    }
+
+    function buildUI() {
+      bigGridEl.innerHTML = "";
+      for (let b = 0; b < 9; b++) {
+        const small = document.createElement("div");
+        small.className = "small";
+        small.dataset.board = String(b);
+
+        const badge = document.createElement("div");
+        badge.className = "badge";
+        badge.textContent = `Spill ${b + 1}`;
+        small.appendChild(badge);
+
+        const grid = document.createElement("div");
+        grid.className = "smallGrid";
+
+        for (let c = 0; c < 9; c++) {
+          const btn = document.createElement("button");
+          btn.type = "button";
+          btn.className = "cell";
+          btn.dataset.board = String(b);
+          btn.dataset.cell = String(c);
+          btn.addEventListener("click", onCellClick);
+          grid.appendChild(btn);
+        }
+
+        small.appendChild(grid);
+
+        const overlay = document.createElement("div");
+        overlay.className = "overlay";
+        overlay.dataset.overlay = String(b);
+        small.appendChild(overlay);
+
+        bigGridEl.appendChild(small);
+      }
+    }
+
+    function updateUI() {
+      // Hvis vi spiller mot bot
+      if (vsBot) {
+        // Hvis activeBoard peker på ferdig småspill => fri
+        if (activeBoard !== -1 && isBoardFinished(activeBoard)) activeBoard = -1;
+        const smallEls = bigGridEl.querySelectorAll(".small");
+        smallEls.forEach(small => {
+          const b = Number(small.dataset.board);
+          small.classList.remove("active", "free");
+          if (activeBoard === -1) {
+            if (!isBoardFinished(b)) small.classList.add("active", "free");
+          } else {
+            if (b === activeBoard) small.classList.add("active");
+          }
+          const btns = small.querySelectorAll(".cell");
+          btns.forEach(btn => {
+            const c = Number(btn.dataset.cell);
+            const v = boards[b][c];
+            btn.textContent = v;
+            btn.className = cellClass(v);
+            // disable hvis: spill over, opptatt, småspill ferdig, feil aktivt brett eller det er bot sin tur
+            let disabled = false;
+            if (gameOver) disabled = true;
+            if (v) disabled = true;
+            if (isBoardFinished(b)) disabled = true;
+            const allowedByActive =
+              (activeBoard === -1) ? (!isBoardFinished(b)) : (b === activeBoard);
+            if (!allowedByActive) disabled = true;
+            if (currentPlayer === "O") disabled = true;
+            btn.disabled = disabled;
+          });
+          // overlay
+          const overlay = small.querySelector(".overlay");
+          const w = smallWinners[b];
+          overlay.classList.remove("show", "x", "o", "t");
+          overlay.textContent = "";
+          if (w === "X" || w === "O") {
+            overlay.classList.add("show", w.toLowerCase());
+            overlay.textContent = w;
+          } else if (w === "T") {
+            overlay.classList.add("show", "t");
+            overlay.textContent = "Uavgjort";
+          }
+        });
+        // statusmeldinger for bot-spill
+        if (gameOver) {
+          const win = checkBigWin();
+          let msg;
+          if (win === "X") {
+            setStatus(`Spillet er ferdig. Du (X) vant!`);
+            msg = "Du (X) vant!";
+          } else if (win === "O") {
+            setStatus(`Spillet er ferdig. Bot (O) vant.`);
+            msg = "Bot (O) vant.";
+          } else {
+            setStatus(`Spillet endte uavgjort.`);
+            msg = "Uavgjort.";
+          }
+          // Show overlay to indicate the end of the game
+          showEndScreen(msg);
+        } else {
+          // Hide overlay while game is ongoing
+          hideEndScreen();
+          const nextInfo = (activeBoard === -1)
+            ? "Neste trekk: <b>fri plassering</b> i et småspill som ikke er ferdig."
+            : `Neste trekk må spilles i småspill <b>${activeBoard + 1}</b>.`;
+          if (currentPlayer === "X") {
+            setStatus(`Din tur (X). ${nextInfo}`);
+          } else {
+            setStatus(`Bot sin tur (O). ${nextInfo}`);
+          }
+        }
+        return;
+      }
+      // Normal (online) modus
+      // Hvis activeBoard peker på ferdig småspill => fri
+      if (activeBoard !== -1 && isBoardFinished(activeBoard)) activeBoard = -1;
+      // Oppdater brettet
+      const smallEls = bigGridEl.querySelectorAll(".small");
+      smallEls.forEach(small => {
+        const b = Number(small.dataset.board);
+        small.classList.remove("active", "free");
+        if (activeBoard === -1) {
+          if (!isBoardFinished(b)) small.classList.add("active", "free");
+        } else {
+          if (b === activeBoard) small.classList.add("active");
+        }
+        const btns = small.querySelectorAll(".cell");
+        btns.forEach(btn => {
+          const c = Number(btn.dataset.cell);
+          const v = boards[b][c];
+          btn.textContent = v;
+          btn.className = cellClass(v);
+          // disable hvis: ikke i rom, gameOver, tatt, småspill ferdig, ikke din tur, eller feil aktivt brett
+          let disabled = false;
+          if (!roomId || !myRole) disabled = true;
+          if (gameOver) disabled = true;
+          if (v) disabled = true;
+          if (isBoardFinished(b)) disabled = true;
+          const allowedByActive =
+            (activeBoard === -1) ? (!isBoardFinished(b)) : (b === activeBoard);
+          if (!allowedByActive) disabled = true;
+          if (myRole !== currentPlayer) disabled = true;
+          btn.disabled = disabled;
+        });
+        // overlay
+        const overlay = small.querySelector(".overlay");
+        const w = smallWinners[b];
+        overlay.classList.remove("show", "x", "o", "t");
+        overlay.textContent = "";
+        if (w === "X" || w === "O") {
+          overlay.classList.add("show", w.toLowerCase());
+          overlay.textContent = w;
+        } else if (w === "T") {
+          overlay.classList.add("show", "t");
+          overlay.textContent = "Uavgjort";
+        }
+      });
+      // status
+      if (!roomId) {
+        setStatus(`Ikke tilkoblet. Trykk <b>Lag rom</b> eller <b>Bli med</b>.`);
+        return;
+      }
+      if (!myRole) {
+        setStatus(`Koblet til rom <b>${roomId}</b>. Venter på rolle...`);
+        return;
+      }
+      const pSpan = (currentPlayer === "X")
+        ? `<b style="color: var(--x)">X</b>`
+        : `<b style="color: var(--o)">O</b>`;
+      const meSpan = (myRole === "X")
+        ? `<b style="color: var(--x)">X</b>`
+        : `<b style="color: var(--o)">O</b>`;
+      const nextInfo = (activeBoard === -1)
+        ? "Neste trekk: <b>fri plassering</b> i et småspill som ikke er ferdig."
+        : `Neste trekk må spilles i småspill <b>${activeBoard + 1}</b>.`;
+      if (gameOver) {
+        const win = checkBigWin();
+        setStatus(`Spillet er ferdig. Vinner: <b>${win}</b>. (Du er ${meSpan})`);
+        // Show an overlay for the end of the game
+        let msg;
+        if (win === "X" || win === "O") {
+          msg = `${win} vant.`;
+        } else {
+          msg = "Uavgjort.";
+        }
+        showEndScreen(msg);
+      } else {
+        // Hide any overlay while the game is ongoing
+        hideEndScreen();
+        const turnTxt = (myRole === currentPlayer)
+          ? `Din tur (${meSpan}).`
+          : `Motstander sin tur. (Du er ${meSpan})`;
+        setStatus(`${turnTxt} Tur: ${pSpan}. ${nextInfo}`);
+      }
+    }
+
+    // === Firebase setup ===
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+
+    // Perform anonymous sign-in. Rather than using top-level await (which may
+    // not be supported consistently across all browsers in local files), we
+    // simply call signInAnonymously and handle any errors via a catch. The
+    // onAuthStateChanged listener below will fire once the sign-in completes.
+    signInAnonymously(auth).catch((err) => {
+      console.error("Anonymous sign-in failed", err);
+    });
+
+    onAuthStateChanged(auth, (user) => {
+      if (!user) return;
+      myUid = user.uid;
+      // auto-join via ?room=
+      const params = new URLSearchParams(location.search);
+      const qRoom = (params.get("room") || "").trim().toUpperCase();
+      if (qRoom) {
+        roomInput.value = qRoom;
+        joinRoom(qRoom);
+      }
+    });
+
+    function roomRef(id) { return doc(db, "rooms", id); }
+
+    async function createRoom() {
+      const id = randRoomCode(4);
+      roomId = id;
+      // Hide any end screen from previous games when creating a new room
+      hideEndScreen();
+
+      emptyState();
+      const payload = {
+        createdAt: serverTimestamp(),
+        players: { x: myUid, o: null },
+        state: {
+          boards: flattenBoards(boards),
+          smallWinners,
+          currentPlayer,
+          activeBoard,
+          gameOver,
+          move: 0,
+          moveHistory: []
+        }
+      };
+      await setDoc(roomRef(id), payload);
+      await attachRoom(id);
+      updateUrl(id);
+      await claimRoleIfNeeded(); // should become X
+    }
+
+    async function joinRoom(id) {
+      roomId = id;
+      // Hide any end screen from previous games when joining a room
+      hideEndScreen();
+      const snap = await getDoc(roomRef(id));
+      if (!snap.exists()) {
+        alert("Fant ikke rom. Sjekk koden.");
+        roomId = null;
+        return;
+      }
+      await attachRoom(id);
+      updateUrl(id);
+      await claimRoleIfNeeded();
+    }
+
+    function updateUrl(id) {
+      const url = new URL(location.href);
+      url.searchParams.set("room", id);
+      history.replaceState({}, "", url.toString());
+      roomPill.textContent = `Rom: ${id}`;
+    }
+
+    async function attachRoom(id) {
+      if (unsub) unsub();
+      roomPill.textContent = `Rom: ${id}`;
+
+      unsub = onSnapshot(roomRef(id), (snap) => {
+        const data = snap.data();
+        if (!data) return;
+
+        // role
+        const px = data.players?.x || null;
+        const po = data.players?.o || null;
+        myRole = (myUid === px) ? "X" : (myUid === po) ? "O" : null;
+        rolePill.textContent = `Rolle: ${myRole || "Spectator"}`;
+
+        // state
+        const st = data.state;
+        if (st) {
+          boards = unflattenBoards(st.boards);
+          smallWinners = st.smallWinners;
+          currentPlayer = st.currentPlayer;
+          activeBoard = st.activeBoard;
+          gameOver = st.gameOver;
+          moveHistory = st.moveHistory || [];
+        }
+
+        updateUI();
+      });
+    }
+
+    async function claimRoleIfNeeded() {
+      if (!roomId) return;
+      const ref = roomRef(roomId);
+      const snap = await getDoc(ref);
+      if (!snap.exists()) return;
+
+      const data = snap.data();
+      const px = data.players?.x || null;
+      const po = data.players?.o || null;
+
+      // If I'm already a player, done
+      if (myUid === px || myUid === po) return;
+
+      // Claim O if empty, else spectator
+      if (!px) {
+        await updateDoc(ref, { "players.x": myUid });
+      } else if (!po) {
+        await updateDoc(ref, { "players.o": myUid });
+      } else {
+        // already full
+      }
+    }
+
+    // === Gameplay (writes to Firestore) ===
+    async function onCellClick(e) {
+      // Hvis vi spiller mot bot
+      if (vsBot) {
+        if (gameOver) return;
+        // Bare la spilleren (X) gjøre trekk
+        if (currentPlayer !== "X") return;
+        const btn = e.currentTarget;
+        const b = Number(btn.dataset.board);
+        const c = Number(btn.dataset.cell);
+        // enforce active board
+        if (activeBoard !== -1 && b !== activeBoard) return;
+        if (isBoardFinished(b)) return;
+        if (boards[b][c]) return;
+        // record move
+        const moveNumber = (moveHistory?.length || 0) + 1;
+        moveHistory = [...(moveHistory || []), { p: "X", b, c, n: moveNumber }];
+        boards[b][c] = "X";
+        const smallWin = checkWin3x3(boards[b]);
+        if (smallWin) smallWinners[b] = smallWin;
+        else if (checkTie3x3(boards[b])) smallWinners[b] = "T";
+        const bigWin = checkBigWin();
+        if (bigWin) {
+          gameOver = true;
+        } else {
+          activeBoard = c;
+          if (activeBoard !== -1 && isBoardFinished(activeBoard)) activeBoard = -1;
+          currentPlayer = "O";
+        }
+        updateUI();
+        // Bot trekker hvis spillet ikke er ferdig
+        if (!gameOver) {
+          // Gi en liten forsinkelse så brukeren ser trekket sitt
+          setTimeout(() => {
+            performBotMove();
+            updateUI();
+          }, 200);
+        }
+        return;
+      }
+      // Online modus
+      if (!roomId || !myRole) return;
+      if (gameOver) return;
+      if (myRole !== currentPlayer) return;
+      const btn = e.currentTarget;
+      const b = Number(btn.dataset.board);
+      const c = Number(btn.dataset.cell);
+      const moveNumber = (moveHistory?.length || 0) + 1;
+      const newMove = { p: currentPlayer, b, c, n: moveNumber };
+      moveHistory = [...(moveHistory || []), newMove];
+      // enforce active board
+      if (activeBoard !== -1 && b !== activeBoard) return;
+      if (isBoardFinished(b)) return;
+      if (boards[b][c]) return;
+      // apply move locally
+      boards[b][c] = currentPlayer;
+      const smallWin = checkWin3x3(boards[b]);
+      if (smallWin) smallWinners[b] = smallWin;
+      else if (checkTie3x3(boards[b])) smallWinners[b] = "T";
+      const bigWin = checkBigWin();
+      if (bigWin) {
+        gameOver = true;
+      } else {
+        activeBoard = c;
+        if (activeBoard !== -1 && isBoardFinished(activeBoard)) activeBoard = -1;
+        currentPlayer = (currentPlayer === "X") ? "O" : "X";
+      }
+      // push to firestore
+      const ref = roomRef(roomId);
+      await updateDoc(ref, {
+        "state.boards": flattenBoards(boards),
+        "state.smallWinners": smallWinners,
+        "state.currentPlayer": currentPlayer,
+        "state.activeBoard": activeBoard,
+        "state.gameOver": gameOver,
+        "state.moveHistory": moveHistory,
+        "state.move": (Number((await getDoc(ref)).data()?.state?.move || 0) + 1)
+      });
+    }
+
+    async function resetRoundSameRoom() {
+      // Hvis vi spiller mot bot: start en ny runde lokalt uten å kontakte Firestore
+      if (vsBot) {
+        // Sørg for å skjule slutt-skjermen før vi starter på nytt
+        hideEndScreen();
+        emptyState();
+        buildUI();
+        updateUI();
+        return;
+      }
+      // Online modus: tilbakestill rommet hvis det finnes
+      if (!roomId) return;
+      // Skjul slutt-skjermen før du tilbakestiller
+      hideEndScreen();
+      emptyState();
+      await updateDoc(roomRef(roomId), {
+        "state.boards": flattenBoards(boards),
+        "state.smallWinners": smallWinners,
+        "state.currentPlayer": currentPlayer,
+        "state.activeBoard": activeBoard,
+        "state.gameOver": gameOver,
+        "state.moveHistory": [],
+        "state.move": 0
+      });
+    }
+
+    // === Buttons ===
+    createRoomBtn.addEventListener("click", async () => {
+      // Ikke lag rom når du spiller mot bot
+      if (vsBot) {
+        alert("Avslutt bot-spill for å lage et nytt rom.");
+        return;
+      }
+      try { await createRoom(); }
+      catch (err) { alert("Feil ved oppretting. Har du limt inn firebaseConfig?"); console.error(err); }
+    });
+
+    joinRoomBtn.addEventListener("click", async () => {
+      // Ikke bli med i rom når du spiller mot bot
+      if (vsBot) {
+        alert("Avslutt bot-spill for å bli med i et rom.");
+        return;
+      }
+      const id = (roomInput.value || "").trim().toUpperCase();
+      if (!id) return alert("Skriv inn romkode.");
+      try { await joinRoom(id); }
+      catch (err) { alert("Feil ved joining."); console.error(err); }
+    });
+
+    copyLinkBtn.addEventListener("click", async () => {
+      // I bot-modus finnes det ingen lenke
+      if (vsBot) {
+        alert("Det finnes ingen link i bot-modus.");
+        return;
+      }
+      if (!roomId) return alert("Lag/join et rom først.");
+      const url = new URL(location.href);
+      url.searchParams.set("room", roomId);
+      try {
+        await navigator.clipboard.writeText(url.toString());
+        alert("Link kopiert!");
+      } catch {
+        prompt("Kopier denne linken:", url.toString());
+      }
+    });
+
+    resetBtn.addEventListener("click", resetRoundSameRoom);
+
+    // Bot-knapper: start et lokalt spill mot datamaskinen
+    botEasyBtn.addEventListener("click", () => {
+      startBotGame("easy");
+    });
+    botMediumBtn.addEventListener("click", () => {
+      startBotGame("medium");
+    });
+    botHardBtn.addEventListener("click", () => {
+      startBotGame("hard");
+    });
+
+    // Restart button on the end-of-game overlay. When pressed, it hides the
+    // overlay and restarts the game either in bot-mode (same difficulty) or
+    // online-mode (resetting the current room).
+    endRestartBtn.addEventListener("click", () => {
+      hideEndScreen();
+      if (vsBot) {
+        // Restart a local bot game with the same difficulty
+        startBotGame(botDifficulty);
+      } else {
+        // In online mode, reset the current round (rematch)
+        resetRoundSameRoom();
+      }
+    });
+
+    // init UI
+    emptyState();
+    buildUI();
+    updateUI();
+    }
+  </script>
+</body>
+</html>
